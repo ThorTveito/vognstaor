@@ -1,5 +1,5 @@
 
-# Bus Departure Display
+# Vognstaor
 
 A real-time bus departure display built with Next.js. Shows upcoming departures for selected bus lines at a chosen stop, with live updates and service messages.
 
