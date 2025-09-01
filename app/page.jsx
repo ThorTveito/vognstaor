@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
+import { Clock as ClockComponent } from "@/components/ui/clock"
 import { Clock, Bus, MapPin } from "lucide-react"
 
 export default function BusDepartureDisplayV8() {
@@ -372,12 +373,15 @@ export default function BusDepartureDisplayV8() {
                 <h1 className="text-xl font-semibold">{stopName}</h1>
               </div>
             </div>
-            {lastUpdated && (
-              <div className="flex items-center gap-2 text-sm opacity-80">
-                <Clock className="w-4 h-4" />
-                Sist oppdatert: {lastUpdated.toLocaleTimeString("no-NO")}
-              </div>
-            )}
+            <div className="flex items-center gap-8">
+              <ClockComponent className="text-primary-foreground" />
+              {lastUpdated && (
+                <div className="flex items-center gap-2 text-sm opacity-80">
+                  <Clock className="w-4 h-4" />
+                  Sist oppdatert: {lastUpdated.toLocaleTimeString("no-NO")}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
