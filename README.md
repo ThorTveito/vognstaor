@@ -39,7 +39,7 @@ To find the stop place ID, use the Entur GraphQL Explorer:
 - Choose how many departures per line to show.
 - The display updates automatically every 30 seconds.
 - Service messages (if any) are shown in a yellow bar under the relevant bus line.
-
+- Ctrl + Shift + S is used to setup a new stop or change settings on current stop.
 ## Customization
 
 - Edit `app/page.jsx` for main display logic.
