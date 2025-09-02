@@ -30,15 +30,6 @@ export function Clock({ className = "", format24 = true, showSeconds = true }: C
     return date.toLocaleTimeString("en-US", options)
   }
 
-  const formatDate = (date: Date) => {
-    return date.toLocaleDateString("en-US", {
-      weekday: "long",
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-    })
-  }
-
   return (
     <div className={`${className}`}>
       <div className="text-3xl font-bold tracking-wider">
