@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Clock as ClockComponent } from "@/components/ui/clock"
-import { Clock, Bus, MapPin } from "lucide-react"
+import { Clock, Bus, MapPin, Cloud, Sun, CloudRain, CloudSnow, Thermometer } from "lucide-react"
 
 export default function BusDepartureDisplayV8() {
   const [isSetup, setIsSetup] = useState(true)
@@ -21,6 +21,8 @@ export default function BusDepartureDisplayV8() {
   const [error, setError] = useState("")
   const [lastUpdated, setLastUpdated] = useState(null)
   const [departureCount, setDepartureCount] = useState(2)
+  const [weather, setWeather] = useState(null)
+  const [weatherLoading, setWeatherLoading] = useState(false)
 
   useEffect(() => {
     const handleKeyDown = (event) => {
@@ -46,6 +48,7 @@ export default function BusDepartureDisplayV8() {
       setSelectedLines(JSON.parse(savedSelectedLines))
       setIsSetup(false)
       fetchDepartures(savedStopId, JSON.parse(savedSelectedLines))
+      fetchWeather() // Fetch weather on startup
     }
 
     if (savedDepartureCount) {
@@ -56,9 +59,11 @@ export default function BusDepartureDisplayV8() {
   useEffect(() => {
     if (!isSetup && !isSelectingLines && stopPlaceId && selectedLines.length > 0) {
       fetchDepartures(stopPlaceId, selectedLines)
+      fetchWeather() // Fetch initial weather data
 
       const interval = setInterval(() => {
         fetchDepartures(stopPlaceId, selectedLines)
+        fetchWeather() // Update weather every 30 seconds as well
       }, 30000)
 
       return () => clearInterval(interval)
@@ -189,6 +194,46 @@ export default function BusDepartureDisplayV8() {
     }
   }
 
+  const fetchWeather = async (latitude = 63.4305, longitude = 10.3951) => {
+    setWeatherLoading(true)
+    try {
+      const response = await fetch(
+        `https://api.met.no/weatherapi/locationforecast/2.0/compact?lat=${latitude}&lon=${longitude}`,
+        {
+          headers: {
+            'User-Agent': 'busdisplay-v8/1.0 github.com/ThorTveito/vognstaor'
+          }
+        }
+      )
+
+      if (!response.ok) {
+        throw new Error(`Weather API error: ${response.status}`)
+      }
+
+      const data = await response.json()
+      
+      // Get current weather data
+      const currentWeather = data.properties.timeseries[0]
+      const instantWeather = currentWeather.data.instant.details
+      const next1hWeather = currentWeather.data.next_1_hours
+      
+      setWeather({
+        temperature: Math.round(instantWeather.air_temperature),
+        humidity: instantWeather.relative_humidity,
+        windSpeed: instantWeather.wind_speed,
+        windDirection: instantWeather.wind_from_direction,
+        precipitation: next1hWeather?.details?.precipitation_amount || 0,
+        symbolCode: next1hWeather?.summary?.symbol_code || 'fair_day',
+        lastUpdated: new Date()
+      })
+    } catch (err) {
+      console.error('Failed to fetch weather:', err)
+      // Don't show weather error to user, just fail silently
+    } finally {
+      setWeatherLoading(false)
+    }
+  }
+
   const handleSetup = async () => {
     if (!stopPlaceId.trim()) {
       setError("Please enter a stop place ID")
@@ -241,6 +286,30 @@ export default function BusDepartureDisplayV8() {
     const expected = new Date(expectedTime)
     const aimed = new Date(aimedTime)
     return expected.getTime() > aimed.getTime()
+  }
+
+  const getWeatherIcon = (symbolCode) => {
+    if (symbolCode.includes('rain') || symbolCode.includes('drizzle')) {
+      return <CloudRain className="w-6 h-6" />
+    }
+    if (symbolCode.includes('snow') || symbolCode.includes('sleet')) {
+      return <CloudSnow className="w-6 h-6" />
+    }
+    if (symbolCode.includes('cloud') || symbolCode.includes('overcast')) {
+      return <Cloud className="w-6 h-6" />
+    }
+    return <Sun className="w-6 h-6" />
+  }
+
+  const getWeatherDescription = (symbolCode) => {
+    if (symbolCode.includes('rain')) return 'Regn'
+    if (symbolCode.includes('drizzle')) return 'Småregn'
+    if (symbolCode.includes('snow')) return 'Snø'
+    if (symbolCode.includes('sleet')) return 'Sludd'
+    if (symbolCode.includes('cloud')) return 'Skyet'
+    if (symbolCode.includes('overcast')) return 'Overskyet'
+    if (symbolCode.includes('clear')) return 'Klart'
+    return 'Sol'
   }
 
   if (isSelectingLines) {
@@ -375,6 +444,22 @@ export default function BusDepartureDisplayV8() {
             </div>
             <div className="flex items-center gap-8">
               <ClockComponent className="text-primary-foreground" />
+              {weather && (
+                <div className="flex items-center gap-3 text-sm">
+                  <div className="flex items-center gap-2">
+                    {getWeatherIcon(weather.symbolCode)}
+                    <div>
+                      <div className="font-bold text-lg flex items-center gap-1">
+                        <Thermometer className="w-4 h-4" />
+                        {weather.temperature}°C
+                      </div>
+                      <div className="opacity-80 text-xs">
+                        {getWeatherDescription(weather.symbolCode)}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
               {lastUpdated && (
                 <div className="flex items-center gap-2 text-sm opacity-80">
                   <Clock className="w-4 h-4" />
