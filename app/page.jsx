@@ -23,6 +23,7 @@ export default function BusDepartureDisplayV8() {
   const [departureCount, setDepartureCount] = useState(2)
   const [weather, setWeather] = useState(null)
   const [weatherLoading, setWeatherLoading] = useState(false)
+  const [coordinates, setCoordinates] = useState({ latitude: null, longitude: null })
 
   useEffect(() => {
     const handleKeyDown = (event) => {
@@ -48,7 +49,7 @@ export default function BusDepartureDisplayV8() {
       setSelectedLines(JSON.parse(savedSelectedLines))
       setIsSetup(false)
       fetchDepartures(savedStopId, JSON.parse(savedSelectedLines))
-      fetchWeather() // Fetch weather on startup
+      // Weather will be fetched after departures are loaded with coordinates
     }
 
     if (savedDepartureCount) {
@@ -59,11 +60,11 @@ export default function BusDepartureDisplayV8() {
   useEffect(() => {
     if (!isSetup && !isSelectingLines && stopPlaceId && selectedLines.length > 0) {
       fetchDepartures(stopPlaceId, selectedLines)
-      fetchWeather() // Fetch initial weather data
+      // Weather will be fetched automatically when departures are loaded
 
       const interval = setInterval(() => {
         fetchDepartures(stopPlaceId, selectedLines)
-        fetchWeather() // Update weather every 30 seconds as well
+        // Weather will be updated when departures are refreshed
       }, 30000)
 
       return () => clearInterval(interval)
@@ -79,6 +80,8 @@ export default function BusDepartureDisplayV8() {
         stopPlace(id: $stopPlaceId) {
           id
           name
+          latitude
+          longitude
           estimatedCalls(numberOfDepartures: 50) {
             realtime
             expectedDepartureTime
@@ -187,6 +190,12 @@ export default function BusDepartureDisplayV8() {
       setDepartures(departureGroups)
       setStopName(stopPlace.name)
       setLastUpdated(new Date())
+      
+      // Store coordinates and fetch weather if we have them
+      if (stopPlace.latitude && stopPlace.longitude) {
+        setCoordinates({ latitude: stopPlace.latitude, longitude: stopPlace.longitude })
+        fetchWeather(stopPlace.latitude, stopPlace.longitude)
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to fetch departures")
     } finally {
@@ -194,7 +203,12 @@ export default function BusDepartureDisplayV8() {
     }
   }
 
-  const fetchWeather = async (latitude = 63.4305, longitude = 10.3951) => {
+  const fetchWeather = async (latitude, longitude) => {
+    if (!latitude || !longitude) {
+      console.log('No coordinates available for weather fetch')
+      return
+    }
+    
     setWeatherLoading(true)
     try {
       const response = await fetch(
