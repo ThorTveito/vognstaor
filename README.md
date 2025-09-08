@@ -6,6 +6,7 @@ A real-time bus departure display built with Next.js. Shows upcoming departures 
 ## Features
 
 - Real-time bus departure info from Entur API
+- **Weather information from yr.no** - Shows current temperature and conditions
 - Select stop and bus lines to display
 - Shows delays and service messages
 - Responsive, modern UI
@@ -50,3 +51,10 @@ To find the stop place ID, use the Entur GraphQL Explorer:
 
 Uses Entur’s Journey Planner GraphQL API for live data.
 
+## Weather Integration
+
+Weather data is fetched from the Norwegian Meteorological Institute's LocationForecast API (yr.no) every 30 seconds, displaying:
+- Current temperature
+- Weather conditions (clear, cloudy, rain, snow, etc.)  
+- Appropriate weather icons
+- Default location: Trondheim (coordinates can be customized in the code)
