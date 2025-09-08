@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Clock as ClockComponent } from "@/components/ui/clock"
-import { Clock, Bus, MapPin } from "lucide-react"
+import { Clock, Bus, MapPin, Sun, Cloud, CloudRain } from "lucide-react"
 
 export default function BusDepartureDisplayV8() {
   const [isSetup, setIsSetup] = useState(true)
@@ -21,6 +21,8 @@ export default function BusDepartureDisplayV8() {
   const [error, setError] = useState("")
   const [lastUpdated, setLastUpdated] = useState(null)
   const [departureCount, setDepartureCount] = useState(2)
+  const [weather, setWeather] = useState(null)
+  const [weatherLoading, setWeatherLoading] = useState(false)
 
   useEffect(() => {
     const handleKeyDown = (event) => {
@@ -65,6 +67,71 @@ export default function BusDepartureDisplayV8() {
     }
   }, [isSetup, isSelectingLines, stopPlaceId, selectedLines])
 
+  const fetchWeather = async (latitude, longitude) => {
+    if (!latitude || !longitude) return
+
+    setWeatherLoading(true)
+    try {
+      // Using yr.no's weather API with coordinates
+      const response = await fetch(`https://api.met.no/weatherapi/locationforecast/2.0/compact?lat=${latitude}&lon=${longitude}`, {
+        headers: {
+          'User-Agent': 'busdisplay-v8/1.0 https://github.com/ThorTveito/vognstaor',
+        },
+      })
+
+      if (!response.ok) {
+        throw new Error(`Weather API error: ${response.status}`)
+      }
+
+      const data = await response.json()
+      
+      // Extract current day weather
+      if (data.properties && data.properties.timeseries && data.properties.timeseries.length > 0) {
+        const current = data.properties.timeseries[0]
+        const today = data.properties.timeseries.find(item => {
+          const itemDate = new Date(item.time)
+          const now = new Date()
+          return itemDate.getDate() === now.getDate() && 
+                 itemDate.getMonth() === now.getMonth() &&
+                 itemDate.getHours() >= 12 && itemDate.getHours() <= 14 // Around noon
+        }) || current
+
+        setWeather({
+          temperature: Math.round(today.data.instant.details.air_temperature),
+          symbol: today.data.next_1_hours?.summary?.symbol_code || today.data.next_6_hours?.summary?.symbol_code,
+          description: getWeatherDescription(today.data.next_1_hours?.summary?.symbol_code || today.data.next_6_hours?.summary?.symbol_code),
+          precipitation: today.data.next_1_hours?.details?.precipitation_amount || 0,
+          windSpeed: today.data.instant.details.wind_speed
+        })
+      }
+    } catch (err) {
+      console.error('Failed to fetch weather:', err)
+      // Don't show weather if it fails - fail silently
+    } finally {
+      setWeatherLoading(false)
+    }
+  }
+
+  const getWeatherDescription = (symbol) => {
+    if (!symbol) return 'Ukjent'
+    
+    const weatherMap = {
+      'clearsky': 'Klarvær',
+      'fair': 'Lettskyet',
+      'partlycloudy': 'Delvis skyet',
+      'cloudy': 'Skyet',
+      'rainshowers': 'Regnbyger',
+      'rain': 'Regn',
+      'thunderstorm': 'Tordenvær',
+      'snow': 'Snø',
+      'fog': 'Tåke'
+    }
+    
+    // Match symbol prefix (symbols often have _day or _night suffix)
+    const baseSymbol = symbol.split('_')[0]
+    return weatherMap[baseSymbol] || 'Variabelt'
+  }
+
   const fetchDepartures = async (stopId, linesToShow) => {
     setLoading(true)
     setError("")
@@ -74,6 +141,8 @@ export default function BusDepartureDisplayV8() {
         stopPlace(id: $stopPlaceId) {
           id
           name
+          latitude
+          longitude
           estimatedCalls(numberOfDepartures: 50) {
             realtime
             expectedDepartureTime
@@ -122,6 +191,12 @@ export default function BusDepartureDisplayV8() {
       }
 
       const stopPlace = data.data.stopPlace
+      
+      // Fetch weather if coordinates are available
+      if (stopPlace.latitude && stopPlace.longitude && linesToShow) {
+        fetchWeather(stopPlace.latitude, stopPlace.longitude)
+      }
+      
       const formattedDepartures = stopPlace.estimatedCalls.map((call) => ({
         line: call.serviceJourney.line,
         destinationDisplay: call.destinationDisplay,
@@ -374,6 +449,23 @@ export default function BusDepartureDisplayV8() {
               </div>
             </div>
             <div className="flex items-center gap-8">
+              {weather && (
+                <div className="flex items-center gap-3 text-primary-foreground">
+                  <div className="flex items-center gap-2">
+                    {weather.symbol && weather.symbol.includes('rain') ? (
+                      <CloudRain className="w-6 h-6" />
+                    ) : weather.symbol && weather.symbol.includes('cloud') ? (
+                      <Cloud className="w-6 h-6" />
+                    ) : (
+                      <Sun className="w-6 h-6" />
+                    )}
+                    <div className="text-right">
+                      <div className="text-2xl font-bold">{weather.temperature}°</div>
+                      <div className="text-sm opacity-80">{weather.description}</div>
+                    </div>
+                  </div>
+                </div>
+              )}
               <ClockComponent className="text-primary-foreground" />
               {lastUpdated && (
                 <div className="flex items-center gap-2 text-sm opacity-80">
